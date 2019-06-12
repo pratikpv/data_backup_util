@@ -48,7 +48,16 @@ def start_backup(src_dir, dst_dir):
 
 
 def adjust_backup_count(dst_dir, num_copy):
-    logging.info('adjust_backup_count not implemented')
+    os.chdir(dst_dir)
+    files = filter(os.path.isfile, os.listdir(dst_dir))
+    files = [os.path.join(dst_dir, f) for f in files]  # add path to each file
+    files.sort(key=lambda x: os.path.getmtime(x))
+    files_to_keep = files[-int(num_copy):]
+
+    for f in range(0, len(files)):
+        if not files[f] in files_to_keep:
+            os.remove(files[f])
+            logging.info('data backup deleted ' + os.path.splitext(os.path.basename(files[f]))[0])
 
 
 def main():
