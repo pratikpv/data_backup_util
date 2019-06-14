@@ -1,56 +1,67 @@
 """
 Format of the config file
-src=value
-dst=value
-num_copy=value
+src_path=path_to_what_backup ( file name or folder name)
+dst_path=path_to_where_to_backup
+num_copy=number of copies to maintain
 """
 
+import datetime
 import logging
 import os
-import datetime
 import shutil
-
-# path where backup_config.txt is saved
-config_file_base = r'C:\\Users\\therock\\backup\\'
-config_file = config_file_base + 'backup_config.txt'
+import sys
+import zipfile
 
 
-def parse_config():
-    src_dir, dst_dir, num_copy = 'd', 'd', 0
+def parse_input_params():
+    if (len(sys.argv) == 2) and os.path.isfile(sys.argv[1]):
+        return sys.argv[1]
 
+    raise NameError('Invalid config')
+
+
+def parse_config(config_file):
     with open(config_file) as c_file:
         for line in c_file:
             name, val = line.partition('=')[::2]
-            if name == 'src_dir':
-                src_dir = val
-            elif name == 'dst_dir':
-                dst_dir = val
+            if name == 'src_path':
+                src_path = val
+            elif name == 'dst_path':
+                dst_path = val
             elif name == 'num_copy':
                 num_copy = val
             else:
                 raise NameError('Invalid config')
 
-    return src_dir.rstrip("\n\r"), dst_dir.rstrip("\n\r"), num_copy.rstrip("\n\r")
+    return src_path.rstrip("\n\r"), dst_path.rstrip("\n\r"), num_copy.rstrip("\n\r")
 
 
-def start_backup(src_dir, dst_dir):
-    if not os.path.isdir(src_dir):
-        logging.fatal('src_dir doesnot exist')
-    if not os.path.isdir(dst_dir):
-        logging.fatal('dst_dir doesnot exist')
+def start_backup(src_path, dst_path):
+    base_file_name = os.path.splitext(os.path.basename(src_path))[0]
+    backup_file_name = base_file_name + '_' + datetime.datetime.now().strftime("%Y-%m-%d-%H_%M_%S")
+    logging.info('data backup from ' + src_path)
 
-    base_file_name = os.path.splitext(os.path.basename(src_dir))[0]
-    base_file_name += '_' + datetime.datetime.now().strftime("%Y-%m-%d-%H_%M_%S")
-    os.makedirs(dst_dir, exist_ok=True)
-    os.chdir(dst_dir)
-    shutil.make_archive(base_file_name, 'zip', src_dir)
-    logging.info('data backup created ' + base_file_name)
+    if not os.path.isdir(src_path) and not os.path.isfile(src_path):
+        logging.fatal('src_path doesnot exist')
+        return
+
+    os.makedirs(dst_path, exist_ok=True)
+    os.chdir(dst_path)
+
+    if os.path.isdir(src_path):
+        shutil.make_archive(backup_file_name, 'zip', src_path)
+    elif os.path.isfile(src_path):
+        with zipfile.ZipFile(backup_file_name + '.zip', 'w') as myzip:
+            myzip.write(src_path)
+        myzip.close()
+
+    logging.info('data backup created ' + dst_path + '/' + backup_file_name)
 
 
-def adjust_backup_count(dst_dir, num_copy):
-    os.chdir(dst_dir)
-    files = filter(os.path.isfile, os.listdir(dst_dir))
-    files = [os.path.join(dst_dir, f) for f in files]  # add path to each file
+def adjust_backup_count(dst_path, num_copy):
+    os.chdir(dst_path)
+    files = filter(os.path.isfile, os.listdir(dst_path))
+    files = [os.path.join(dst_path, f) for f in files]  # add path to each file
     files.sort(key=lambda x: os.path.getmtime(x))
     files_to_keep = files[-int(num_copy):]
 
@@ -61,25 +72,27 @@ def adjust_backup_count(dst_dir, num_copy):
 
 
 def main():
-    logging.basicConfig(filename=str(config_file_base + '\\app.log'), filemode='a',
-                        format='%(asctime)s %(levelname)s - %(message)s', level=logging.INFO)
-
-    logging.info('======== Backup script launched ========')
     try:
-        src_dir, dst_dir, num_copy = parse_config()
-        logging.info('configuration parsed')
-        start_backup(src_dir, dst_dir)
+        config_file = parse_input_params()
+        config_file_parent = os.path.abspath(os.path.join(config_file, '..'))
+        logging.basicConfig(filename=str(config_file_parent + '/app.log'), filemode='a',
+                            format='%(asctime)s %(levelname)s - %(message)s', level=logging.INFO)
+
+        logging.info('======== Backup script launched ========')
+        src_path, dst_path, num_copy = parse_config(config_file)
+        logging.info('configuration parsed = ' + config_file)
+        start_backup(src_path, dst_path)
         logging.info('data backup done successfully')
-        adjust_backup_count(dst_dir, num_copy)
+        adjust_backup_count(dst_path, num_copy)
         logging.info('deleted extra copies successfully')
-    except NameError:
-        logging.fatal('Configuartion Parsing failed')
-        print('Configuartion Parsing failed')
-        return
+    except:
+        pass
+    #    logging.fatal('Failed to backup')
 
     logging.info('======== Backup script exit ========')
     logging.shutdown()
 
 
 if __name__ == "__main__":
+    main()
     main()
