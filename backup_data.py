@@ -87,12 +87,11 @@ def main():
         logging.info('deleted extra copies successfully')
     except:
         pass
-    #    logging.fatal('Failed to backup')
+        logging.fatal('Failed to backup')
 
     logging.info('======== Backup script exit ========')
     logging.shutdown()
 
 
 if __name__ == "__main__":
-    main()
     main()
