@@ -13,11 +13,23 @@ import sys
 import zipfile
 
 
+class bad_config_exception(Exception):
+    pass
+
+
+class invalid_input_exception(Exception):
+    pass
+
+
+class bad_src_exception(Exception):
+    pass
+
+
 def parse_input_params():
     if (len(sys.argv) == 2) and os.path.isfile(sys.argv[1]):
         return sys.argv[1]
 
-    raise NameError('Invalid config')
+    raise invalid_input_exception('Invalid input')
 
 
 def parse_config(config_file):
@@ -31,7 +43,7 @@ def parse_config(config_file):
             elif name == 'num_copy':
                 num_copy = val
             else:
-                raise NameError('Invalid config')
+                raise bad_config_exception('Invalid config')
 
     return src_path.rstrip("\n\r"), dst_path.rstrip("\n\r"), num_copy.rstrip("\n\r")
 
@@ -42,8 +54,7 @@ def start_backup(src_path, dst_path):
     logging.info('data backup from ' + src_path)
 
     if not os.path.isdir(src_path) and not os.path.isfile(src_path):
-        logging.fatal('src_path doesnot exist')
-        return
+        raise bad_src_exception('src_path does not exist')
 
     os.makedirs(dst_path, exist_ok=True)
     os.chdir(dst_path)
@@ -75,6 +86,7 @@ def main():
     try:
         config_file = parse_input_params()
         config_file_parent = os.path.abspath(os.path.join(config_file, '..'))
+        # create logfile in same dir as the config file passed.
         logging.basicConfig(filename=str(config_file_parent + '/app.log'), filemode='a',
                             format='%(asctime)s %(levelname)s - %(message)s', level=logging.INFO)
 
@@ -85,9 +97,14 @@ def main():
         logging.info('data backup done successfully')
         adjust_backup_count(dst_path, num_copy)
         logging.info('deleted extra copies successfully')
+    except bad_config_exception:
+        logging.fatal('Failed to backup: bad configuration passed')
+    except invalid_input_exception:
+        logging.fatal('Failed to backup: invalid input passed')
+    except bad_src_exception:
+        logging.fatal('src_path does not exist')
     except:
-        pass
-        logging.fatal('Failed to backup')
+        logging.fatal('Failed to backup: unknown error')
 
     logging.info('======== Backup script exit ========')
     logging.shutdown()
