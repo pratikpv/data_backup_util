@@ -23,4 +23,5 @@ python3 backup_data.py <config_file>
 
 For linux use crontab and for windows use ‘task scheduler’ to run the script automatically as per your need.
 
+To backup more than one file/folder location, use another config file
 
